@@ -1,0 +1,38 @@
+name: Mirror Caixa CSV
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  STATES: SP
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and validate
+        run: |
+          mkdir out
+          for uf in $STATES; do
+            file="out/Lista_imoveis_${uf}.csv"
+            code=$(curl -sS --retry 3 --retry-delay 10 -A "caixa-csv-mirror/1.0 (github.com/vinirib/caixa-csv-mirror)" \
+              -o "$file" -w '%{http_code}' "https://venda-imoveis.caixa.gov.br/listaweb/Lista_imoveis_${uf}.csv")
+            bytes=$(wc -c < "$file")
+            echo "$uf status=$code bytes=$bytes"
+            [ "$code" = "200" ] || { echo "unexpected status for $uf"; exit 1; }
+            [ "$bytes" -gt 20000 ] || { echo "file too small for $uf"; exit 1; }
+            head -c 2000 "$file" | iconv -f windows-1252 -t utf-8 | grep -q "UF;Cidade" || { echo "unexpected content for $uf"; exit 1; }
+            [ $(wc -l < "$file") -gt 10 ] || { echo "too few rows for $uf"; exit 1; }
+          done
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest >/dev/null 2>&1 || gh release create latest --title "Latest lists" --notes "Replaced every 6 hours by the Mirror Caixa CSV workflow." --latest=false
+          gh release upload latest out/*.csv --clobber
+          gh release view latest --json assets -q '.assets[] | "\(.name) \(.size) \(.updatedAt)"'
