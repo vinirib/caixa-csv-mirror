@@ -15,6 +15,7 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Download and validate
         run: |
           mkdir out
@@ -29,11 +30,24 @@ jobs:
             head -c 2000 "$file" | iconv -f windows-1252 -t utf-8 | grep -q "UF;Cidade" || { echo "unexpected content for $uf"; exit 1; }
             [ $(wc -l < "$file") -gt 10 ] || { echo "too few rows for $uf"; exit 1; }
           done
+      # Polite incremental detail fetch (see scripts/fetch_details.py). Never blocks the CSV mirror.
+      - name: Fetch property details
+        continue-on-error: true
+        timeout-minutes: 45
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p cache
+          for uf in $STATES; do
+            gh release download latest -p "details_${uf}.json" -D cache --clobber || echo "no cached details for $uf"
+            python3 scripts/fetch_details.py "out/Lista_imoveis_${uf}.csv" "cache/details_${uf}.json" "out/details_${uf}.json"
+          done
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           gh release view latest >/dev/null 2>&1 || gh release create latest --title "Latest lists" --notes "Replaced every 6 hours by the Mirror Caixa CSV workflow." --latest=false
-          gh release upload latest out/*.csv --clobber
+          gh release upload latest out/* --clobber
           gh release view latest --json assets -q '.assets[] | "\(.name) \(.size) \(.updatedAt)"'
