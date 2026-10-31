@@ -1,0 +1,26 @@
+name: Sources probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: One request each
+        run: |
+          UA="property-filter-research/1.0 (+https://github.com/vinirib/property-filter)"
+          for u in "https://www.portalzuk.com.br/robots.txt" \
+                   "https://www.portalzuk.com.br/leilao-de-imoveis/u/todos-imoveis/sp" \
+                   "https://www.portalzuk.com.br/imovel/sp/sao-paulo/mooca/rua-doutor-almeida-lima-1087/37599-234832" \
+                   "https://www.megaleiloes.com.br/imoveis" \
+                   "https://www.megaleiloes.com.br/imoveis/casas/rs/vacaria/casa-145-m2-planalto-vacaria-rs-x130665" \
+                   "https://www.frazaoleiloes.com.br/" \
+                   "https://www.superbid.net/categorias/imoveis" \
+                   "https://www.sodresantoro.com.br/imoveis/lotes" \
+                   "https://www.leilaoimovel.com.br/encontre-seu-imovel"; do
+            curl -sS -m 40 -A "$UA" -o body.out -D head.out -w "status=%{http_code} bytes=%{size_download} url=$u\n" "$u" || echo "curl failed $u"
+            grep -i -E '^(location|server|cf-mitigated):' head.out | cut -c1-90 || true
+            grep -o -i -E 'just a moment|captcha-delivery|attention required|access denied|cf-chl|request unsuccessful' body.out | sort -u | head -3 || true
+            sleep 4
+          done
