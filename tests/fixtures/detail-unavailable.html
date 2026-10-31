@@ -1,0 +1,156 @@
+
+
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+	<meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+	
+	
+	<!-- Google Tag Manager -->
+	<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+	new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+	j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+	'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+	})(window,document,'script','dataLayer','GTM-NDBHSL');</script>
+	<!-- End Google Tag Manager -->	
+	
+	
+    <link rel="shortcut icon" href="favicon.ico"/>
+    <link rel="stylesheet" href="assets/css/normalize.css" media="screen"/>
+    <link rel="stylesheet" href="assets/css/base.css?" media="screen"/>
+    <!--link rel="stylesheet" href="assets/css/icons.css" media="screen"/-->
+    <link rel="stylesheet" href="assets/css/wider.css" media="screen and (min-width: 500px)"/>
+    <link rel="stylesheet" href="assets/css/form-flow.css" media="screen" />
+    <link rel="stylesheet" href="assets/css/jquery-ui-1.8.11.custom.css?v=1.0" rel="stylesheet" />	
+	<link rel="stylesheet" href="assets/css/imoveisavenda.css" media="screen"/>
+    <link rel="stylesheet" href="assets/css/products.css" media="screen"/>
+	<link rel="stylesheet" href="assets/css/global.css" media="screen"/>
+	<link rel="stylesheet" href="assets/css/caixa.css" media="screen"/>
+	<link rel="stylesheet" href="assets/css/icon-aewsome.css" media="screen"/>
+	
+    <title>Caixa - Imóveis à venda</title>
+	
+	<script src="assets/js/jquery-1.10.2.min.js"></script>
+	<script src="assets/js/jquery-ui.js"></script>
+	<script src="assets/js/global.js"></script>
+	<script src="assets/js/jquery.mask.min.js"></script>
+	<script src="assets/js/jquery.maskMoney.js"></script>
+	<script src="assets/js/modernizr.js"></script>
+	<script src="assets/js/products.js"></script>
+	<script src="assets/js/simovUtil.js"></script>
+	<script src="assets/js/simov_navegacao.js?v=1.0"></script>
+	<script src="assets/js/form-flow.js"></script>
+	<script src="funcoes/funcoes.js?v=53924,59"></script>
+	
+	
+    <style type="text/css">
+      .thumbnails img {
+        height: 80px;
+        border: 1px solid #eee;
+        padding: 1px;
+        margin: 0 10px 10px 0;
+      }
+
+      .thumbnails img:hover {
+        border: 1px solid #ff7200;
+        cursor:pointer;
+      }
+
+      .preview img {
+        border: 1px solid #eee;
+        padding: 1px;
+        max-width: 95%;
+      }
+	  
+    </style>
+	
+	<script>
+	
+		jQuery(document).ready(
+		
+			function() {
+			
+				jQuery('.foto').click(function(e) {	
+					e.preventDefault();
+				});
+				//jQuery('#minhalista').click(function(e) {	
+				//	e.preventDefault();
+				//});
+				
+				jQuery('#btn_buscarimoveis').click(function(e) {
+					$('#frm_detalhe').attr('action','busca-imovel.asp').trigger('submit');
+				});
+				
+				jQuery('#btn_disputas').click(function(e) {
+					$('#frm_detalhe').attr('action','venda-online/resultados.asp?q_hdnOrigem=index').trigger('submit');
+				});	
+				
+				jQuery('#btn_resultados').click(function(e) {
+					$('#frm_detalhe').attr('action','venda-online/resultados.asp').trigger('submit');
+				});
+				jQuery('#btn_favoritos').click(function(e) {
+					$('#frm_detalhe').attr('action','venda-online/favoritos.asp?acessodireto=1').trigger('submit');
+				});	
+				
+				jQuery('#btn_dados').click(function(e) {
+					$('#frm_detalhe').attr('action','venda-online/dados-proponente.asp?q_hdnimovel=8787713285072').trigger('submit');
+				});
+				
+		});	
+	
+	</script>
+	
+</head>
+
+<body class="produto imoveis-a-venda">
+
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NDBHSL"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+
+<div class="wrapper">
+    
+	<div class="section noprint" ></div>
+	
+    <div class="content-hero content-section section-index noprint">
+        <p class="breadcrumb">
+            <a href="http://www.caixa.gov.br/Paginas/home-caixa.aspx">Início</a> › <a href="http://www.caixa.gov.br/voce/Paginas/default.aspx">Produtos para você</a> › <a href="index.asp">Imóveis à venda</a> › Detalhe
+        </p>
+		<br />
+		<div class="special2" style="padding-left: 40px; padding-right:40px;">
+			<div class="section-index2">
+				<ul class="menu-simov-direita no-bullets">
+					<li>
+						<button type="button" class="submit-d submit-orange submit-small" id="btn_buscarimoveis">Buscar<br/>imóveis</button>
+					</li>
+					<li>
+						<button type="button" class="submit-d submit-orange submit-small" id="btn_disputas">Minhas<br/>disputas</button>
+					</li>
+					<li>
+						<button type="button" class="submit-d submit-orange submit-small" id="btn_resultados">Meus<br/>resultados</button>
+					</li>
+					<li>
+						<button type="button" class="submit-d submit-orange submit-small" id="btn_favoritos">Meus<br/>favoritos</button>
+					</li>
+					<li>
+						<button type="button" class="submit-d submit-orange submit-small" id="btn_dados">Dados<br />cadastrais</button>
+					</li>					
+				</ul>
+			</div>
+		</div>			
+    </div>
+	<form method="post" id="frm_detalhe">
+		<div id="dadosImovel" class="content-section section-text with-box" style="padding-top: 20px;">
+			<a href="#" class="top-link visible-mobile">Topo</a>
+
+			<div class='content-wrapper clearfix'>
+			
+					<div class='control-item control-span-12_12'>
+						<h5 style="margin-bottom: 0.5rem; color: #006bae;">
+							<div style='margin-bottom: 0.5rem;color: #006bae;text-align: center;padding-top: 40px;line-height: 1.5;'>Ocorreu um erro ao tentar recuperar os dados do imóvel. <br>O imóvel que você procura não está mais disponível para venda.</div>
