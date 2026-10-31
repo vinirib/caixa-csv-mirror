@@ -1,0 +1,22 @@
+name: Keep property-filter awake
+
+# The free Render instance sleeps after 15 minutes without traffic and a cold start takes minutes,
+# with the listings read again from scratch. A light request every 10 minutes keeps it up.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the login page
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 240 --retry 2 --retry-delay 20 \
+            -A "property-filter-keep-awake/1.0" https://property-filter.onrender.com/login)
+          echo "HTTP $code"
+          test "$code" = 200
