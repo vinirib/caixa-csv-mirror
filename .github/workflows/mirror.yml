@@ -32,6 +32,7 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release view latest >/dev/null 2>&1 || gh release create latest --title "Latest lists" --notes "Replaced every 6 hours by the Mirror Caixa CSV workflow." --latest=false
           gh release upload latest out/*.csv --clobber
