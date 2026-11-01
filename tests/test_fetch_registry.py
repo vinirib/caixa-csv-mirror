@@ -86,6 +86,14 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(todo, ["a", "c", "d"])       # novo, alterado, velho; 'b' fica de fora
 
 
+class PublishTest(unittest.TestCase):
+    def test_builds_the_gh_upload_command_with_clobber(self):
+        self.assertEqual(
+            fr.publish_command("registry_SP.json", "vinirib/caixa-csv-mirror"),
+            ["gh", "release", "upload", "latest", "registry_SP.json",
+             "--repo", "vinirib/caixa-csv-mirror", "--clobber"])
+
+
 class SelectIdsTest(unittest.TestCase):
     def test_skips_ids_already_fresh_and_keeps_order(self):
         now = datetime(2026, 11, 1, tzinfo=timezone.utc)
