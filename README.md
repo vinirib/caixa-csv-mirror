@@ -63,6 +63,14 @@ python3 scripts/fetch_registry.py --uf SP --ids 1444421729441,1444408501866
 # or: --ids "1444421729441 1444408501866"  (space-separated), --out other_file.json to pick the file
 ```
 
+Add `--publish` to upload the written `registry_<UF>.json` to this mirror's `latest` release, where
+property-filter reads it on its next refresh. It needs the GitHub CLI (`gh`) installed and authenticated,
+and uses `--repo vinirib/caixa-csv-mirror` by default (override with `--repo`):
+
+```sh
+python3 scripts/fetch_registry.py --uf SP --ids 1444421729441 --publish
+```
+
 In sweep mode the cache and output are the same file, so each run picks up where the last stopped.
 
 Defaults are deliberately gentle so a run is a small, slow batch that does not look like a burst: it reads

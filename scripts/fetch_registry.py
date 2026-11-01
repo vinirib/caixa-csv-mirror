@@ -23,6 +23,8 @@ Usage:
     python3 scripts/fetch_registry.py <Lista_imoveis_UF.csv> <cache registry_UF.json> <out registry_UF.json>
     # sob demanda: checa só alguns imóveis e mescla no registry_<UF>.json
     python3 scripts/fetch_registry.py --uf SP --ids 1444421729441,1444408501866
+    # --publish sobe o registry_<UF>.json para a release `latest` deste mirror (precisa do gh autenticado)
+    python3 scripts/fetch_registry.py --uf SP --ids 1444421729441 --publish
 
 Defaults are deliberately gentle so a run does not look like a burst and trip the bot manager: a small
 batch, several seconds between requests, with jitter. Tune via environment: MAX_FETCH (default 40),
@@ -45,6 +47,7 @@ from datetime import datetime, timedelta, timezone
 
 BASE = "https://venda-imoveis.caixa.gov.br"
 USER_AGENT = "caixa-csv-mirror/1.0 (github.com/vinirib/caixa-csv-mirror)"
+DEFAULT_REPO = "vinirib/caixa-csv-mirror"
 
 # Cabeçalho de um ato: "R. 4-M. 24.726, em 23 de outubro de 2023." ou
 # "AV. 6-M. 24.726, em 1º de abril de 2026.". O OCR às vezes perde o hífen ("R.3M.") ou troca a
@@ -292,6 +295,21 @@ def process(todo, state, prices, cache, delay, max_fetch, max_seconds):
     return read
 
 
+def publish_command(out_path, repo):
+    """The gh call that replaces the registry_<UF>.json asset of the `latest` release."""
+    return ["gh", "release", "upload", "latest", out_path, "--repo", repo, "--clobber"]
+
+
+def publish(out_path, repo):
+    """Uploads the written registry to the mirror release, so property-filter reads it on its next refresh."""
+    if shutil.which("gh") is None:
+        raise SystemExit("--publish precisa do gh (GitHub CLI) instalado e autenticado.")
+    result = subprocess.run(publish_command(out_path, repo), capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"falha ao publicar {out_path}: {(result.stderr or result.stdout).strip()}")
+    print(f"published {out_path} to {repo} release latest")
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(
@@ -303,6 +321,9 @@ def main(argv):
     ap.add_argument("--uf", help="UF, ex. SP (obrigatório com --ids)")
     ap.add_argument("--out", dest="out_file",
                     help="arquivo de saída/cache no modo --ids (default registry_<UF>.json)")
+    ap.add_argument("--publish", action="store_true",
+                    help="sobe o registry_<UF>.json escrito para a release `latest` do mirror (precisa do gh)")
+    ap.add_argument("--repo", default=DEFAULT_REPO, help=f"repo do mirror para --publish (default {DEFAULT_REPO})")
     args = ap.parse_args(argv[1:])
 
     max_fetch = int(os.environ.get("MAX_FETCH", "40"))
@@ -331,6 +352,8 @@ def main(argv):
                   if v else f"  {i}: não lido ainda")
         alerts = sum(1 for i in ids if cache.get(i, {}).get("risk") == "alerta")
         print(f"read {read}, registry now has {len(cache)}; requested with open liens: {alerts}")
+        if args.publish:
+            publish(out_path, args.repo)
         return
 
     # Modo varredura: lê a lista inteira, novos/alterados/velhos primeiro, e poda o que saiu da lista.
@@ -346,6 +369,8 @@ def main(argv):
     write_registry(args.out, state, kept)
     alerts = sum(1 for d in kept.values() if d.get("risk") == "alerta")
     print(f"read {read}, stored {len(kept)} of {len(listing)}, with open liens: {alerts}")
+    if args.publish:
+        publish(args.out, args.repo)
 
 
 if __name__ == "__main__":
