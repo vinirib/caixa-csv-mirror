@@ -53,7 +53,11 @@ curl -sSL -A "caixa-csv-mirror/1.0 (github.com/vinirib/caixa-csv-mirror)" \
 python3 scripts/fetch_registry.py Lista_imoveis_SP.csv registry_SP.json registry_SP.json
 ```
 
-The cache and output are the same file, so each run picks up where the last stopped. Tune a run with
-`MAX_FETCH` (default 300), `MAX_SECONDS` (1800), `REQUEST_DELAY` (1.0) and `STALE_DAYS` (30).
+The cache and output are the same file, so each run picks up where the last stopped.
+
+Defaults are deliberately gentle so a run is a small, slow batch that does not look like a burst: it reads
+at most `MAX_FETCH` (default 40) matrículas, waiting `REQUEST_DELAY` (default 4.0s, jittered up to 1.6x)
+between them. Raise them only if the site is letting you through. Other knobs: `MAX_SECONDS` (1800) and
+`STALE_DAYS` (30).
 
 Run the tests with `python3 -m unittest discover -s tests`.

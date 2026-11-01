@@ -21,11 +21,14 @@ Prerequisites: poppler (pdftoppm) and tesseract with the Portuguese language dat
 Usage:
     python3 scripts/fetch_registry.py <Lista_imoveis_UF.csv> <cache registry_UF.json> <out registry_UF.json>
 
-Tuning via environment: MAX_FETCH (default 300), MAX_SECONDS (1800), REQUEST_DELAY (1.0), STALE_DAYS (30).
+Defaults are deliberately gentle so a run does not look like a burst and trip the bot manager: a small
+batch, several seconds between requests, with jitter. Tune via environment: MAX_FETCH (default 40),
+MAX_SECONDS (1800), REQUEST_DELAY (4.0, the floor of a jittered wait), STALE_DAYS (30).
 """
 import csv
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -72,6 +75,11 @@ ONUS_LABELS = {name for name, is_onus, _ in CATEGORIES if is_onus}
 CANCELS_REF = re.compile(r"cancel\w*\s+(?:a|o|d[aeo])?\s*(?:AV|R)\.?\s*(\d+)", re.IGNORECASE)
 
 MARGIN_NOISE = re.compile(r"(?m)^[\s|>«»ç9Q357EB()oul]{1,4}\s+")
+
+
+def pause(delay):
+    """Espera entre delay e delay*1.6, para não cair num ritmo robótico que o bot manager detecta."""
+    time.sleep(random.uniform(delay, delay * 1.6))
 
 
 def read_list(path):
@@ -213,9 +221,9 @@ def require_tools():
 def main(argv):
     csv_path, cache_path, out_path = argv[1:4]
     state = os.path.basename(csv_path).removeprefix("Lista_imoveis_").removesuffix(".csv")
-    max_fetch = int(os.environ.get("MAX_FETCH", "300"))
+    max_fetch = int(os.environ.get("MAX_FETCH", "40"))
     max_seconds = int(os.environ.get("MAX_SECONDS", "1800"))
-    delay = float(os.environ.get("REQUEST_DELAY", "1.0"))
+    delay = float(os.environ.get("REQUEST_DELAY", "4.0"))
     stale_after = timedelta(days=int(os.environ.get("STALE_DAYS", "30")))
 
     require_tools()
@@ -250,7 +258,7 @@ def main(argv):
                 if failures >= 3:
                     print("3 failures, stopping")
                     break
-                time.sleep(delay)
+                pause(delay)
                 continue
             try:
                 text, pages = ocr(pdf, Path(tmp))
@@ -268,7 +276,7 @@ def main(argv):
                      fetchedAt=datetime.now(timezone.utc).isoformat(timespec="seconds"))
         cache[property_id] = entry
         read += 1
-        time.sleep(delay)
+        pause(delay)
 
     kept = {i: d for i, d in cache.items() if i in listing}
     with open(out_path, "w", encoding="utf-8") as target:
