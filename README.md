@@ -53,7 +53,17 @@ curl -sSL -A "caixa-csv-mirror/1.0 (github.com/vinirib/caixa-csv-mirror)" \
 python3 scripts/fetch_registry.py Lista_imoveis_SP.csv registry_SP.json registry_SP.json
 ```
 
-The cache and output are the same file, so each run picks up where the last stopped.
+Since the bot manager tends to allow only about one fetch before it starts challenging, sweeping all of SP
+is a slow trickle. To check just the properties you are actually looking at, pass their ids and the state;
+the result is merged into `registry_<UF>.json` without touching the rest, and ids already read recently are
+skipped, so re-running the same list resumes where a challenge cut it short:
+
+```sh
+python3 scripts/fetch_registry.py --uf SP --ids 1444421729441,1444408501866
+# or: --ids "1444421729441 1444408501866"  (space-separated), --out other_file.json to pick the file
+```
+
+In sweep mode the cache and output are the same file, so each run picks up where the last stopped.
 
 Defaults are deliberately gentle so a run is a small, slow batch that does not look like a burst: it reads
 at most `MAX_FETCH` (default 40) matrículas, waiting `REQUEST_DELAY` (default 4.0s, jittered up to 1.6x)

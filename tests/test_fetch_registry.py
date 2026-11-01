@@ -86,5 +86,17 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(todo, ["a", "c", "d"])       # novo, alterado, velho; 'b' fica de fora
 
 
+class SelectIdsTest(unittest.TestCase):
+    def test_skips_ids_already_fresh_and_keeps_order(self):
+        now = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        old = (now - timedelta(days=40)).isoformat(timespec="seconds")
+        fresh = now.isoformat(timespec="seconds")
+        cache = {"a": {"fetchedAt": fresh}, "c": {"fetchedAt": old}}
+        # 'a' fresco é pulado; 'c' velho é relido; 'b' e 'd' novos entram, preservando a ordem pedida.
+        todo, skipped = fr.select_ids(["a", "b", "c", "d"], cache, now, timedelta(days=30))
+        self.assertEqual(todo, ["b", "c", "d"])
+        self.assertEqual(skipped, ["a"])
+
+
 if __name__ == "__main__":
     unittest.main()

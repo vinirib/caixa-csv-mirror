@@ -19,7 +19,10 @@ Prerequisites: poppler (pdftoppm) and tesseract with the Portuguese language dat
     Debian: apt-get install poppler-utils tesseract-ocr tesseract-ocr-por
 
 Usage:
+    # varredura da lista inteira (novos/alterados/velhos primeiro)
     python3 scripts/fetch_registry.py <Lista_imoveis_UF.csv> <cache registry_UF.json> <out registry_UF.json>
+    # sob demanda: checa só alguns imóveis e mescla no registry_<UF>.json
+    python3 scripts/fetch_registry.py --uf SP --ids 1444421729441,1444408501866
 
 Defaults are deliberately gentle so a run does not look like a burst and trip the bot manager: a small
 batch, several seconds between requests, with jitter. Tune via environment: MAX_FETCH (default 40),
@@ -218,27 +221,36 @@ def require_tools():
         raise SystemExit("tesseract sem o idioma 'por'. Instale tesseract-lang / tesseract-ocr-por.")
 
 
-def main(argv):
-    csv_path, cache_path, out_path = argv[1:4]
-    state = os.path.basename(csv_path).removeprefix("Lista_imoveis_").removesuffix(".csv")
-    max_fetch = int(os.environ.get("MAX_FETCH", "40"))
-    max_seconds = int(os.environ.get("MAX_SECONDS", "1800"))
-    delay = float(os.environ.get("REQUEST_DELAY", "4.0"))
-    stale_after = timedelta(days=int(os.environ.get("STALE_DAYS", "30")))
+def load_cache(path):
+    if path and os.path.exists(path):
+        with open(path, encoding="utf-8") as source:
+            return json.load(source).get("properties", {})
+    return {}
 
-    require_tools()
-    listing = read_list(csv_path)
-    cache = {}
-    if os.path.exists(cache_path):
-        with open(cache_path, encoding="utf-8") as source:
-            cache = json.load(source).get("properties", {})
+
+def write_registry(out_path, state, properties):
     now = datetime.now(timezone.utc)
-    todo = plan(listing, cache, now, max_fetch, stale_after)
-    print(f"{state}: {len(listing)} listed, {len(cache)} cached, {len(todo)} to read")
+    with open(out_path, "w", encoding="utf-8") as target:
+        json.dump({"state": state, "generatedAt": now.isoformat(timespec="seconds"), "properties": properties},
+                  target, ensure_ascii=False, separators=(",", ":"))
 
+
+def select_ids(ids, cache, now, stale_after):
+    """No modo --ids, pula o que já está no cache e fresco. Ajuda a retomar quando o 302 corta a rodada."""
+    limit = (now - stale_after).isoformat()
+    todo = [i for i in ids if i not in cache or cache[i].get("fetchedAt", "") < limit]
+    skipped = [i for i in ids if i not in todo]
+    return todo, skipped
+
+
+def process(todo, state, prices, cache, delay, max_fetch, max_seconds):
+    """Lê cada id de `todo` (até max_fetch), atualizando `cache` no lugar. Devolve quantos leu.
+
+    Para no primeiro 302/desafio guardando o que já leu; `prices` dá (preço, modalidade) por id, ou vazio.
+    """
     started = time.monotonic()
     read = failures = 0
-    for property_id in todo:
+    for property_id in todo[:max_fetch]:
         if time.monotonic() - started > max_seconds:
             print("time budget reached, stopping")
             break
@@ -270,18 +282,68 @@ def main(argv):
                     break
                 continue
         failures = 0
-        price, modality = listing[property_id]
+        price, modality = prices.get(property_id, (None, None))
         entry = assess(parse(text))
         entry.update(price=price, modality=modality, pages=pages,
                      fetchedAt=datetime.now(timezone.utc).isoformat(timespec="seconds"))
         cache[property_id] = entry
         read += 1
         pause(delay)
+    return read
 
+
+def main(argv):
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Lê as matrículas da Caixa, aponta os ônus em aberto e escreve registry_<UF>.json.")
+    ap.add_argument("csv", nargs="?", help="Lista_imoveis_<UF>.csv (modo varredura)")
+    ap.add_argument("cache", nargs="?", help="registry_<UF>.json de entrada, no modo varredura")
+    ap.add_argument("out", nargs="?", help="registry_<UF>.json de saída, no modo varredura")
+    ap.add_argument("--ids", help="checa só estes ids (separados por vírgula ou espaço); exige --uf")
+    ap.add_argument("--uf", help="UF, ex. SP (obrigatório com --ids)")
+    ap.add_argument("--out", dest="out_file",
+                    help="arquivo de saída/cache no modo --ids (default registry_<UF>.json)")
+    args = ap.parse_args(argv[1:])
+
+    max_fetch = int(os.environ.get("MAX_FETCH", "40"))
+    max_seconds = int(os.environ.get("MAX_SECONDS", "1800"))
+    delay = float(os.environ.get("REQUEST_DELAY", "4.0"))
+    stale_after = timedelta(days=int(os.environ.get("STALE_DAYS", "30")))
+    now = datetime.now(timezone.utc)
+    require_tools()
+
+    # Modo sob demanda: checa só os ids pedidos e mescla no registry, sem podar o resto.
+    if args.ids:
+        if not args.uf:
+            raise SystemExit("--uf é obrigatório com --ids")
+        state = args.uf.upper()
+        ids = [i for i in re.split(r"[,\s]+", args.ids.strip()) if i]
+        out_path = args.out_file or f"registry_{state}.json"
+        cache = load_cache(out_path)
+        todo, skipped = select_ids(ids, cache, now, stale_after)
+        print(f"{state}: {len(ids)} ids requested, {len(cache)} cached, "
+              f"{len(todo)} to read, {len(skipped)} already fresh")
+        read = process(todo, state, {}, cache, delay, max_fetch, max_seconds)
+        write_registry(out_path, state, cache)
+        for i in ids:
+            v = cache.get(i)
+            print(f"  {i}: {v['risk']} | ônus {len(v['openOnus'])} | atos {v['acts']}"
+                  if v else f"  {i}: não lido ainda")
+        alerts = sum(1 for i in ids if cache.get(i, {}).get("risk") == "alerta")
+        print(f"read {read}, registry now has {len(cache)}; requested with open liens: {alerts}")
+        return
+
+    # Modo varredura: lê a lista inteira, novos/alterados/velhos primeiro, e poda o que saiu da lista.
+    if not (args.csv and args.cache and args.out):
+        raise SystemExit("modo varredura precisa de <csv> <cache> <out>; ou use --ids --uf")
+    state = os.path.basename(args.csv).removeprefix("Lista_imoveis_").removesuffix(".csv")
+    listing = read_list(args.csv)
+    cache = load_cache(args.cache)
+    todo = plan(listing, cache, now, max_fetch, stale_after)
+    print(f"{state}: {len(listing)} listed, {len(cache)} cached, {len(todo)} to read")
+    read = process(todo, state, listing, cache, delay, max_fetch, max_seconds)
     kept = {i: d for i, d in cache.items() if i in listing}
-    with open(out_path, "w", encoding="utf-8") as target:
-        json.dump({"state": state, "generatedAt": now.isoformat(timespec="seconds"), "properties": kept},
-                  target, ensure_ascii=False, separators=(",", ":"))
+    write_registry(args.out, state, kept)
     alerts = sum(1 for d in kept.values() if d.get("risk") == "alerta")
     print(f"read {read}, stored {len(kept)} of {len(listing)}, with open liens: {alerts}")
 
